@@ -127,4 +127,31 @@ First, for this to work, you need a domain name and control over the DNS record.
 
 ![cloudflare](change-nameservers.png)
 
-*
+
+
+# Setting up Interlock
+
+The main problem with cloudflare and Carina is that there is no good way yet to get a static IP address for the container.  So, what I finally did was:
+
+* Set up a server to run [Interlock](https://github.com/ehazlett/interlock).  Only, I'm using a variant called `carina/interlock` that was built to allow you to easily use carina credentials
+
+* Start carina/interlock
+
+```
+docker run -d -p 80:80 carina/interlock \
+   --username $CARINA_USERNAME  \
+   --apikey $CARINA_APIKEY \
+   --clustername somerville \
+   --plugin haproxy start
+```
+
+Carina watches the swarm so that and when a new container launches with a public port and a hostname, it will make a proxy entry for it.  For example:
+
+```
+docker run -d \
+   -p 8888 \
+   -P   \
+   --hostname nbtest.tmpnb-oreilly.com  \ zischwartz/sparkdemo
+```
+
+* Start the tmpnb server using the host so that it gets a public DNS entry
