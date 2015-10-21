@@ -13,8 +13,10 @@ $ chmod +x /usr/local/bin/carina
 
 ## Setup environment variables
 
+```
 export RACKSPACE_USERNAME=makerpressadmin
-export RACKSPACE_APIKEY=39a15325f2e67a3ff68d59b76f990616
+export RACKSPACE_APIKEY=<your API key>
+```
 
 ## List the clusters:
 
