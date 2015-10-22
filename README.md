@@ -53,7 +53,7 @@ drwx------+ 90 apple  staff  3060 Oct 15 11:51 ..
 -rw-------   1 apple  staff  1675 Oct 15 11:51 key.pem
 ```
 
-# Set up tmpnb
+# Start tmpnb
 
 There are 4 main sections:
 
@@ -73,9 +73,12 @@ export POOL_SIZE=5
 export OVERPROVISION_FACTOR=2
 export CPU_SHARES=$(( (1024*${OVERPROVISION_FACTOR})/${POOL_SIZE} ))
 export TMPNB_NODE=bb0f0ccc-2dcb-410b-94cf-808c99324ab6-n1
+export DOCKER_HOST=tcp://104.130.0.25:2376
 
-docker run -d -P \
-            --hostname=sparkdemo.tmpnb-oreilly.com \
+docker run -d \
+           -P \
+           -p 80 \
+           -h sparkdemo.tmpnb-oreilly.com \
             -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
             --restart=always \
             -e constraint:node==$TMPNB_NODE \
@@ -92,13 +95,14 @@ docker run --rm --volumes-from swarm-data \
           busybox \
             sh -c "cp /etc/docker/server-cert.pem /etc/docker/cert.pem && cp /etc/docker/server-key.pem /etc/docker/key.pem"
 
-docker run  -d  --restart=always \
-           --net=container:proxy \
+
+docker run  -d --restart=always \
+          --net=container:proxy \
            -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
            -e constraint:node==$TMPNB_NODE \
            --volumes-from swarm-data \
            --name=tmpnb \
-           -e DOCKER_HOST="tcp://127.0.0.1:42376" \
+           -e DOCKER_HOST=$DOCKER_HOST \
            -e DOCKER_TLS_VERIFY=1 \
            -e DOCKER_CERT_PATH=/etc/docker \
            jupyter/tmpnb python orchestrate.py \
@@ -119,6 +123,12 @@ $ docker inspect tmpnb | grep "\"IP\":"
 ```
 
 Visit this URL in your browser and you *should* get the tmpnb spawner.
+
+# Kill the tmpnb
+
+```
+docker rm -fv $( docker ps -aq --filter name=zischwartzsparkdemo )
+```
 
 # Configure https on cloudflare
 
