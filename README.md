@@ -69,12 +69,15 @@ NOTE: YOU MUST PULL THE IMAGE YOU WANT TO USE *BEFORE* YOU START `tmpnb`.  So, i
 
 ```
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
-export POOL_SIZE=50
+export POOL_SIZE=5
 export OVERPROVISION_FACTOR=2
 export CPU_SHARES=$(( (1024*${OVERPROVISION_FACTOR})/${POOL_SIZE} ))
-export TMPNB_NODE=7306dce3-a3b7-4658-967b-364bf21cbe0d-n1
+export TMPNB_NODE=bb0f0ccc-2dcb-410b-94cf-808c99324ab6-n1
 
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --restart=always \
+docker run -d -P \
+            --hostname=sparkdemo.tmpnb-oreilly.com \
+            -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
+            --restart=always \
             -e constraint:node==$TMPNB_NODE \
             --name=proxy \
             -u root \
@@ -82,7 +85,6 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --restart=always \
               --default-target http://127.0.0.1:9999 \
               --port 80 \
               --api-ip 127.0.0.1 \
-              —-allow_origin="*" \
               --api-port 8001
 
 docker run --rm --volumes-from swarm-data \
@@ -90,18 +92,23 @@ docker run --rm --volumes-from swarm-data \
           busybox \
             sh -c "cp /etc/docker/server-cert.pem /etc/docker/cert.pem && cp /etc/docker/server-key.pem /etc/docker/key.pem"
 
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --restart=always \
+docker run  -d  --restart=always \
+           --net=container:proxy \
+           -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
            -e constraint:node==$TMPNB_NODE \
            --volumes-from swarm-data \
            --name=tmpnb \
            -e DOCKER_HOST="tcp://127.0.0.1:42376" \
            -e DOCKER_TLS_VERIFY=1 \
            -e DOCKER_CERT_PATH=/etc/docker \
-           jupyter/tmpnb python orchestrate.py --image='zischwartz/sparkdemo' \
-           --command="/bin/bash -c 'IPYTHON_OPTS=\"notebook --NotebookApp.base_url=/{base_path} --ip=0.0.0.0 --NotebookApp.allow_origin=*\" pyspark --packages com.databricks:spark-csv_2.10:1.2.0'" \
-           --pool_size=$POOL_SIZE \
-           --mem_limit='128m' \
-           --cpu_shares=$CPU_SHARES
+           jupyter/tmpnb python orchestrate.py \
+              --image='zischwartz/sparkdemo' \
+              --container_ip=0.0.0.0 \
+              —-allow_origin="*" \
+              --command="/bin/bash -c 'IPYTHON_OPTS=\"notebook --NotebookApp.base_url=/{base_path} --ip=0.0.0.0 --NotebookApp.allow_origin=*\" pyspark --packages com.databricks:spark-csv_2.10:1.2.0'" \
+              --pool_size=$POOL_SIZE \
+              --mem_limit='128m' \
+              --cpu_shares=$CPU_SHARES
 ```
 
 Once it's running, figure out your public IP address using `docker inspect tmpnb`.  The IP address will be in the "Node.IP" field in the big json blob.  You can also just do this:
