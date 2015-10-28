@@ -75,9 +75,10 @@ export CPU_SHARES=$(( (1024*${OVERPROVISION_FACTOR})/${POOL_SIZE} ))
 export TMPNB_NODE=bb0f0ccc-2dcb-410b-94cf-808c99324ab6-n1
 export DOCKER_HOST=tcp://104.130.0.25:2376
 
+#            -p 8001:8001 \
+
 docker run -d \
            -P \
-           -p 80 \
            -h sparkdemo.tmpnb-oreilly.com \
             -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
             --restart=always \
@@ -85,9 +86,10 @@ docker run -d \
             --name=proxy \
             -u root \
             jupyter/configurable-http-proxy \
-              --default-target http://127.0.0.1:9999 \
-              --port 80 \
-              --api-ip 127.0.0.1 \
+              --default-target http://tmpnb:9999 \
+              --port 8000 \
+              --ip 0.0.0.0 \
+              --api-ip 0.0.0.0 \
               --api-port 8001
 
 docker run --rm --volumes-from swarm-data \
@@ -97,8 +99,8 @@ docker run --rm --volumes-from swarm-data \
 
 
 docker run  -d --restart=always \
-          --net=container:proxy \
            -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
+           -e CONFIGPROXY_ENDPOINT="http://proxy:8001" \
            -e constraint:node==$TMPNB_NODE \
            --volumes-from swarm-data \
            --name=tmpnb \
@@ -109,7 +111,7 @@ docker run  -d --restart=always \
               --image='zischwartz/sparkdemo' \
               --container_ip=0.0.0.0 \
               —-allow_origin="*" \
-              --command="/bin/bash -c 'IPYTHON_OPTS=\"notebook --NotebookApp.base_url=/{base_path} --ip=0.0.0.0 --NotebookApp.allow_origin=*\" pyspark --packages com.databricks:spark-csv_2.10:1.2.0'" \
+              --command="/bin/bash -c 'IPYTHON_OPTS=\"notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --NotebookApp.allow_origin=*\" pyspark --packages com.databricks:spark-csv_2.10:1.2.0'" \
               --pool_size=$POOL_SIZE \
               --mem_limit='128m' \
               --cpu_shares=$CPU_SHARES
@@ -127,7 +129,7 @@ Visit this URL in your browser and you *should* get the tmpnb spawner.
 # Kill the tmpnb
 
 ```
-docker rm -fv $( docker ps -aq --filter name=zischwartzsparkdemo )
+docker rm -fv $( docker ps -aq --filter name=jupyterscipy-notebook )
 ```
 
 # Configure https on cloudflare
@@ -155,7 +157,7 @@ The main problem with cloudflare and Carina is that there is no good way yet to 
 * Start carina/interlock
 
 ```
-docker run -d -p 80:80 carina/interlock \
+docker run -d -p 80:80 --name=interlock carina/interlock \
    --username $CARINA_USERNAME  \
    --apikey $CARINA_APIKEY \
    --clustername somerville \
@@ -168,7 +170,8 @@ Carina watches the swarm so that and when a new container launches with a public
 docker run -d \
    -p 8888 \
    -P   \
-   --hostname nbtest.tmpnb-oreilly.com  \ zischwartz/sparkdemo
+   --hostname nbtest.tmpnb-oreilly.com  \
+   zischwartz/sparkdemo
 ```
 
 * Start the tmpnb server using the host so that it gets a public DNS entry
