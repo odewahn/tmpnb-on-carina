@@ -1,63 +1,10 @@
 # Set up a cluster on Carina
 
-## Install this:
+Before dogin any of this, you need to install [cainra](https://github.com/getcarina/carina) CLI tool and start a cluster.  In this example, I've used a cluster called `somerville`.
 
-https://github.com/rackerlabs/carina/releases
+There are 4 then main steps to configuring tmpnb:
 
-## Copy it to a directory on your path and make it executable
-
-```
-$ mv carina-darwin-amd64 /usr/local/bin/carina
-$ chmod +x /usr/local/bin/carina
-```
-
-## Setup environment variables
-
-```
-export RACKSPACE_USERNAME=makerpressadmin
-export RACKSPACE_APIKEY=<your API key>
-```
-
-## List the clusters:
-
-```
-$ carina list
-ClusterName	Username	Flavor		Image					Nodes	Status
-lexington	makerpressadmin	container1-4G	564ce1eb-3519-4c2d-9ea4-9dc22b55e4de	7	active
-```
-
-## Create a cluster
-
-```
-$ carina create brooklyn-test
-```
-
-* Download the credentials so you can run docker commands locally.  Be sure to make a directory for these, since it just downloads the files to wherever you run it:
-
-```
-$ carina credentials brooklyn-test
-source "docker.env"
-# Run the above or use a subshell with your arguments to carina
-# $( carina command... )
-$ ls -la
-total 64
-drwxr-xr-x  10 apple  staff   340 Oct 15 11:51 .
-drwx------+ 90 apple  staff  3060 Oct 15 11:51 ..
--rw-------   1 apple  staff  3177 Oct 15 11:51 README.md
--rw-------   1 apple  staff  1766 Oct 15 11:51 ca-key.pem
--rw-------   1 apple  staff  1119 Oct 15 11:51 ca.pem
--rw-------   1 apple  staff  1086 Oct 15 11:51 cert.pem
--rw-------   1 apple  staff   124 Oct 15 11:51 docker.cmd
--rw-------   1 apple  staff   184 Oct 15 11:51 docker.env
--rw-------   1 apple  staff   140 Oct 15 11:51 docker.ps1
--rw-------   1 apple  staff  1675 Oct 15 11:51 key.pem
-```
-
-# Start tmpnb
-
-There are 4 main sections:
-
-* Set up your environment vriables.  Note that the one big change you need to make is to set the `TMPNB_NODE` variable based on your cluster setup.  To find this value, run `docker info` and you'll see the various node names.  They'll have long uuid and then a suffix like `-n1`, `-n2` and so on.  This constraint will ensure that all the tmpb components run on the same node.
+* Set up your environment variables.  Note that the one big change you need to make is to set the `TMPNB_NODE` variable based on your cluster setup.  To find this value, run `docker info` and you'll see the various node names.  They'll have long uuid and then a suffix like `-n1`, `-n2` and so on.  This constraint will ensure that all the tmpb components run on the same node.
 
 * Start `jupyter/configurable-http-proxy`
 
@@ -67,6 +14,8 @@ There are 4 main sections:
 
 NOTE: YOU MUST PULL THE IMAGE YOU WANT TO USE *BEFORE* YOU START `tmpnb`.  So, in this case, I did `docker pull zischwartz/sparkdemo`  
 
+Here's a script that shows the exact commands:
+
 ```
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 export POOL_SIZE=5
@@ -75,11 +24,9 @@ export CPU_SHARES=$(( (1024*${OVERPROVISION_FACTOR})/${POOL_SIZE} ))
 export TMPNB_NODE=bb0f0ccc-2dcb-410b-94cf-808c99324ab6-n1
 export DOCKER_HOST=tcp://104.130.0.25:2376
 
-#            -p 8001:8001 \
-
 docker run -d \
            -P \
-           -h sparkdemo.tmpnb-oreilly.com \
+           -h spark.tmpnb-oreilly.com \
             -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
             --restart=always \
             -e constraint:node==$TMPNB_NODE \
@@ -98,7 +45,8 @@ docker run --rm --volumes-from swarm-data \
             sh -c "cp /etc/docker/server-cert.pem /etc/docker/cert.pem && cp /etc/docker/server-key.pem /etc/docker/key.pem"
 
 
-docker run  -d --restart=always \
+docker run  -d \
+           --restart=always \
            -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
            -e CONFIGPROXY_ENDPOINT="http://proxy:8001" \
            -e constraint:node==$TMPNB_NODE \
@@ -129,30 +77,12 @@ Visit this URL in your browser and you *should* get the tmpnb spawner.
 # Kill the tmpnb
 
 ```
-docker rm -fv $( docker ps -aq --filter name=jupyterscipy-notebook )
+docker rm -fv $( docker ps -aq --filter name=zischwartzsparkdemo )
 ```
-
-# Configure https on cloudflare
-
-First, for this to work, you need a domain name and control over the DNS record.
-
-* Add your site on cloudflare; this is an option at the top of the console.  In this example I'm going to use `tmpnb-oreilly.com`
-
-* Add an `A` record that points to the IP address where your `tmpnb` server is running.
-
-![cloudflare](cloudflare-A-rec-setup.png)
-
-* Update your nameservers on your DNS entry to point to the DNS servers supplied by cloudflare.  This step is specific to your provider.
-
-![cloudflare](change-nameservers.png)
-
-
 
 # Setting up Interlock
 
-The main problem with cloudflare and Carina is that there is no good way yet to get a static IP address for the container.  So, what I finally did was:
-
-* Set up a server to run [Interlock](https://github.com/ehazlett/interlock).  Only, I'm using a variant called `carina/interlock` that was built to allow you to easily use carina credentials
+Set up a server to run [Interlock](https://github.com/ehazlett/interlock).  Only, I'm using a variant called `carina/interlock` that was built to allow you to easily use carina credentials
 
 * Start carina/interlock
 
@@ -175,3 +105,37 @@ docker run -d \
 ```
 
 * Start the tmpnb server using the host so that it gets a public DNS entry
+
+# Interlock with ssl
+
+* Buy a cert
+* Configure the cert to get a PEM.  This is different for each provider.  :(
+* In my case, I used DNSSimple and Comodo.  There's a good description of how to set this up at
+https://lucianpantelimon.info/setting-up-haproxy-with-comodo-positivessl-certificates/
+
+```
+  cat STAR_tmpnb-oreilly_com.key >> STAR_tmpnb-oreilly.com.pem
+  cat STAR_tmpnb-oreilly_com.crt >> STAR_tmpnb-oreilly.com.pem
+
+  cat STAR_tmpnb-oreilly_com_bundle.pem.crt >> STAR_tmpnb-oreilly.com.pem
+```
+
+<img src="dnssimple-crt.png"/>
+
+* Start Interlock using the cert
+
+
+```
+docker run \
+   -d \
+   -p 443:443 \
+   -v /root:/ssl \
+   -e HAPROXY_SSL_CERT=/ssl/STAR_tmpnb-oreilly.com.pem \
+   --name=interlock \
+   carina/interlock \
+      --debug \
+      --username $CARINA_USERNAME \
+      --apikey $CARINA_APIKEY \
+      --clustername somerville \
+      --plugin haproxy start
+```   
