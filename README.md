@@ -1,3 +1,8 @@
+# tmpnb on Carina
+
+This repo describes how to get tmpnb running on Carina.  Since Carina doesn't (yet) support static IPs, it also shows how to use [interlock](https://github.com/ehazlett/interlock) on another server to serve as a static IP where you can create a DNS entry and an SSL cert.
+
+
 # Set up a cluster on Carina
 
 Before dogin any of this, you need to install [cainra](https://github.com/getcarina/carina) CLI tool and start a cluster.  In this example, I've used a cluster called `somerville`.
@@ -74,7 +79,9 @@ $ docker inspect tmpnb | grep "\"IP\":"
 
 Visit this URL in your browser and you *should* get the tmpnb spawner.
 
-# Kill the tmpnb
+# Kill nodes started by tmpnb
+
+Here's a command to kill all the containers started by `tmpnb`:
 
 ```
 docker rm -fv $( docker ps -aq --filter name=zischwartzsparkdemo )
@@ -120,7 +127,7 @@ https://lucianpantelimon.info/setting-up-haproxy-with-comodo-positivessl-certifi
   cat STAR_tmpnb-oreilly_com_bundle.pem.crt >> STAR_tmpnb-oreilly.com.pem
 ```
 
-<img src="dnssimple-crt.png"/>
+<img src="dnssimple-cert.png"/>
 
 * Start Interlock using the cert
 
