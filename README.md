@@ -5,7 +5,7 @@ This repo describes how to get tmpnb running on Carina.  Since Carina doesn't (y
 
 # Set up a cluster on Carina
 
-Before dogin any of this, you need to install [cainra](https://github.com/getcarina/carina) CLI tool and start a cluster.  In this example, I've used a cluster called `somerville`.
+Before doing any of this, you need to install [cainra](https://github.com/getcarina/carina) CLI tool and start a cluster.  In this example, I've used a cluster called `somerville`.
 
 There are 4 then main steps to configuring tmpnb:
 
